@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { Student } from '../../types/Student';
 import { Department } from '../../types/Department';
@@ -138,11 +138,6 @@ export default function DepartmentAttendanceCheck() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const getDepartmentName = () => {
-    const dept = departments.find(d => d.id === selectedDepartment);
-    return dept?.name || '';
   };
 
   return (

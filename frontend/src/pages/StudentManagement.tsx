@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useStudents } from '../hooks/useStudents';
 import { useDepartments } from '../hooks/useDepartments';
 import { Student, Grade } from '../types/Student';
@@ -8,7 +8,6 @@ import DepartmentSelect from '../components/department/DepartmentSelect';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import ExcelUpload from '../components/student/ExcelUpload';
-import { formatStudentDisplay } from '../utils/studentFormatter';
 
 const GRADES: Grade[] = ['유치부', '1학년', '2학년', '첫영성체', '4학년', '5학년', '6학년'];
 

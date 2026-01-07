@@ -1,4 +1,3 @@
-import React from 'react';
 import { Department } from '../../types/Department';
 
 interface DepartmentSelectProps {

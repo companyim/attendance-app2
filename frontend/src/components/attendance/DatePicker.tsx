@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getSundaysIn2026 } from '../../utils/dateUtils';
 import api from '../../services/api';
 

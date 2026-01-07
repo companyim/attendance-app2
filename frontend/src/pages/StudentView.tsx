@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Student } from '../types/Student';
 import { Department } from '../types/Department';
 import Button from '../components/common/Button';
-import { formatStudentDisplay } from '../utils/studentFormatter';
 
 interface Attendance {
   id: string;

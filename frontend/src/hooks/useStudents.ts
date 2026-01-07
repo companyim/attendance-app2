@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { Student } from '../types/Student';
-import { Department } from '../types/Department';
 
 interface UseStudentsParams {
   grade?: string;

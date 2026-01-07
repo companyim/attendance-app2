@@ -1,4 +1,3 @@
-import React from 'react';
 import { Grade } from '../../types/Student';
 
 interface GradeFilterProps {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Student } from '../../types/Student';
 import { Department } from '../../types/Department';
 import { formatStudentDisplay } from '../../utils/studentFormatter';

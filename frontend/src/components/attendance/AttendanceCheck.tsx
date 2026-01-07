@@ -1,19 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Student } from '../../types/Student';
+import { Student, Grade } from '../../types/Student';
 import { Department } from '../../types/Department';
 import GradeFilter from './GradeFilter';
 import DatePicker from './DatePicker';
 import DepartmentSelect from '../department/DepartmentSelect';
 import Button from '../common/Button';
 
-interface AttendanceRecord {
-  studentId: string;
-  status: 'present' | 'absent';
-}
-
 export default function AttendanceCheck() {
-  const [selectedGrade, setSelectedGrade] = useState<string>('');
+  const [selectedGrade, setSelectedGrade] = useState<Grade | ''>('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [students, setStudents] = useState<Student[]>([]);

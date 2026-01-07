@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Student } from '../../types/Student';
+import { Student, Grade } from '../../types/Student';
 import GradeFilter from './GradeFilter';
 import DatePicker from './DatePicker';
 import Button from '../common/Button';
 
 export default function GradeAttendanceCheck() {
-  const [selectedGrade, setSelectedGrade] = useState<string>('');
+  const [selectedGrade, setSelectedGrade] = useState<Grade | ''>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [students, setStudents] = useState<Student[]>([]);
   const [attendanceMap, setAttendanceMap] = useState<Record<string, 'present' | 'absent'>>({});
