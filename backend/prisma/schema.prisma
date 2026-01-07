@@ -1,0 +1,102 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 관리자 인증 테이블
+model AdminAuth {
+  id           String   @id @default(uuid())
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("admin_auth")
+}
+
+// 부서 테이블
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  students   Student[]
+  attendance Attendance[]
+
+  @@map("departments")
+}
+
+// 학생 테이블
+model Student {
+  id            String   @id @default(uuid())
+  departmentId  String?  @map("department_id")
+  name          String
+  baptismName   String?  @map("baptism_name")
+  studentNumber String?  @map("student_number")
+  email         String?
+  phone         String?
+  grade         String   @default("1학년")
+  talent        Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  department          Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  attendance          Attendance[]
+  talentTransactions  TalentTransaction[]
+
+  @@index([departmentId], name: "students_department_id_idx")
+  @@index([grade], name: "students_grade_idx")
+  @@index([name], name: "students_name_idx")
+  @@map("students")
+}
+
+// 출석 기록 테이블
+model Attendance {
+  id           String   @id @default(uuid())
+  studentId    String   @map("student_id")
+  departmentId String?  @map("department_id")
+  date         DateTime
+  status       String   // 'present' | 'absent'
+  type         String   @default("grade") // 'grade' | 'department'
+  talentGiven  Int      @default(0) @map("talent_given")
+  memo         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  student            Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  department         Department?         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  talentTransactions TalentTransaction[]
+
+  @@unique([studentId, date, type], name: "studentId_date_type")
+  @@index([date], name: "attendance_date_idx")
+  @@index([studentId, date], name: "attendance_student_id_date_idx")
+  @@index([departmentId, date], name: "attendance_department_id_date_idx")
+  @@index([type], name: "attendance_type_idx")
+  @@map("attendance")
+}
+
+// 달란트 거래 내역 테이블
+model TalentTransaction {
+  id           String   @id @default(uuid())
+  studentId    String   @map("student_id")
+  type         String   // 'earn' | 'spend' | 'adjust'
+  amount       Int
+  reason       String
+  attendanceId String?  @map("attendance_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attendance Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@index([studentId], name: "talent_transactions_student_id_idx")
+  @@index([createdAt(sort: Desc)], name: "talent_transactions_created_at_idx")
+  @@map("talent_transactions")
+}
