@@ -335,7 +335,7 @@ export async function updateAttendance(req: Request, res: Response) {
             studentId: existing.studentId,
             type: 'spend',
             amount: -oldTalentGiven,
-            reason: `부서 출석 상태 변경으로 인한 회수 (${existing.department.name})`,
+            reason: `부서 출석 상태 변경으로 인한 회수 (${existing.department?.name || '알 수 없음'})`,
             attendanceId: id,
           },
         });
@@ -350,7 +350,7 @@ export async function updateAttendance(req: Request, res: Response) {
             studentId: existing.studentId,
             type: 'earn',
             amount: 1,
-            reason: `부서 출석 보상 (${existing.department.name})`,
+            reason: `부서 출석 보상 (${existing.department?.name || '알 수 없음'})`,
             attendanceId: id,
           },
         });
