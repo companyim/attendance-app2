@@ -18,9 +18,12 @@ const PORT = process.env.PORT || 3000;
 
 // 미들웨어
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CORS_ORIGIN 
-    : true, // 개발 환경에서는 모든 오리진 허용
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://attendance-app-one-neon.vercel.app',
+    process.env.CORS_ORIGIN || ''
+  ].filter(Boolean),
   credentials: true,
 }));
 app.use(cookieParser());
