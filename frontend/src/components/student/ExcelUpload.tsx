@@ -184,8 +184,10 @@ export default function ExcelUpload({ onSuccess }: { onSuccess?: () => void }) {
               <div className="bg-gray-50 p-3 rounded-lg text-sm">
                 <p className="font-medium mb-2">엑셀 파일 형식:</p>
                 <p className="text-gray-700">
-                  필수: 이름, 학년<br />
-                  선택: 세례명, 부서, 학번, 이메일, 전화번호
+                  A열: 번호, B열: 이름 세례명, C열: 학년
+                </p>
+                <p className="text-gray-600 mt-1">
+                  예: 1 | 손유림 루치아 | 유치부(7세)
                 </p>
                 <p className="text-gray-600 mt-2">
                   학년: 유치부, 1학년, 2학년, 첫영성체, 4학년, 5학년, 6학년

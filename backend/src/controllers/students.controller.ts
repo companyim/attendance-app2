@@ -506,30 +506,89 @@ export async function uploadStudentsExcel(req: Request, res: Response) {
     const students: any[] = [];
     const errors: string[] = [];
 
-    // 첫 번째 행은 헤더로 가정
-    // 엑셀 형식: A:번호, B:학년, C:이름, D:세례명, E:지원부서
+    const validGrades = ['유치부', '1학년', '2학년', '첫영성체', '4학년', '5학년', '6학년'];
+
+    function normalizeGrade(raw: string): string | null {
+      if (!raw) return null;
+      for (const g of validGrades) {
+        if (raw.startsWith(g) || raw.includes(g)) return g;
+      }
+      return null;
+    }
+
+    function parseNameAndBaptism(raw: string): { name: string; baptismName: string | null } {
+      if (!raw) return { name: '', baptismName: null };
+      const cleaned = raw.replace(/[,/]/g, ' ').trim();
+      const parts = cleaned.split(/\s+/);
+      if (parts.length >= 2) {
+        const koreanNameParts: string[] = [];
+        const baptismParts: string[] = [];
+        for (const part of parts) {
+          if (/^[가-힣]+$/.test(part) && koreanNameParts.length < 1) {
+            koreanNameParts.push(part);
+          } else if (koreanNameParts.length > 0) {
+            baptismParts.push(part);
+          } else {
+            koreanNameParts.push(part);
+          }
+        }
+        return {
+          name: koreanNameParts.join(''),
+          baptismName: baptismParts.length > 0 ? baptismParts.join(' ') : null,
+        };
+      }
+      return { name: cleaned, baptismName: null };
+    }
+
+    // 헤더 행 자동 감지: 첫 번째 행이 헤더인지 데이터인지 확인
+    let headerRow = 0;
+    const firstRow = worksheet.getRow(1);
+    const firstCellVal = firstRow.getCell(1).value?.toString().trim() || '';
+    const secondCellVal = firstRow.getCell(2).value?.toString().trim() || '';
+    if (secondCellVal && (secondCellVal.includes('이름') || secondCellVal.includes('학년') || secondCellVal.includes('번호'))) {
+      headerRow = 1;
+    }
+
+    // 열 순서 자동 감지
+    let colName = 2, colGrade = 3, colPhone = 4;
+    if (headerRow === 1) {
+      for (let c = 1; c <= (worksheet.columnCount || 11); c++) {
+        const val = firstRow.getCell(c).value?.toString().trim() || '';
+        if (val.includes('이름')) colName = c;
+        else if (val.includes('학년')) colGrade = c;
+        else if (val.includes('연락') || val.includes('전화') || val.includes('번호') && !val.includes('순')) colPhone = c;
+      }
+    }
+
     worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return; // 헤더 스킵
+      if (rowNumber <= headerRow) return;
 
-      const name = row.getCell(3).value?.toString().trim(); // C열: 이름
-      const baptismName = row.getCell(4).value?.toString().trim() || null; // D열: 세례명
-      const grade = row.getCell(2).value?.toString().trim(); // B열: 학년
-      const departmentName = row.getCell(5).value?.toString().trim() || null; // E열: 지원부서
-      const studentNumber = row.getCell(1).value?.toString().trim() || null; // A열: 번호
+      const rawName = row.getCell(colName).value?.toString().trim();
+      const rawGrade = row.getCell(colGrade).value?.toString().trim();
+      const rawPhone = row.getCell(colPhone).value?.toString().trim() || null;
 
-      if (!name) {
+      if (!rawName && !rawGrade) return;
+
+      if (!rawName) {
         errors.push(`${rowNumber}행: 이름이 없습니다.`);
         return;
       }
 
-      if (!grade) {
+      if (!rawGrade) {
         errors.push(`${rowNumber}행: 학년이 없습니다.`);
         return;
       }
 
-      const validGrades = ['유치부', '1학년', '2학년', '첫영성체', '4학년', '5학년', '6학년'];
-      if (!validGrades.includes(grade)) {
-        errors.push(`${rowNumber}행: 유효하지 않은 학년입니다 (${grade}).`);
+      const grade = normalizeGrade(rawGrade);
+      if (!grade) {
+        errors.push(`${rowNumber}행: 유효하지 않은 학년입니다 (${rawGrade}).`);
+        return;
+      }
+
+      const { name, baptismName } = parseNameAndBaptism(rawName);
+
+      if (!name) {
+        errors.push(`${rowNumber}행: 이름을 파싱할 수 없습니다 (${rawName}).`);
         return;
       }
 
@@ -537,8 +596,9 @@ export async function uploadStudentsExcel(req: Request, res: Response) {
         name,
         baptismName,
         grade,
-        departmentName,
-        studentNumber,
+        phone: rawPhone,
+        departmentName: null,
+        studentNumber: null,
       });
     });
 
@@ -620,6 +680,7 @@ export async function uploadStudentsExcel(req: Request, res: Response) {
           grade: student.grade,
           departmentId: departmentId || null,
           studentNumber: student.studentNumber,
+          phone: student.phone || null,
         },
       });
 
