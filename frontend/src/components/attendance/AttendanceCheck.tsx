@@ -50,7 +50,11 @@ export default function AttendanceCheck() {
         }
 
         const response = await api.get(`/students?${params.toString()}`);
-        setStudents(response.data.students || []);
+        const loaded = response.data.students || [];
+        setStudents(loaded);
+        const defaultMap: Record<string, 'present' | 'absent'> = {};
+        for (const s of loaded) { defaultMap[s.id] = 'present'; }
+        setAttendanceMap(defaultMap);
       } catch (error) {
         console.error('학생 목록 로드 실패:', error);
       } finally {
@@ -63,10 +67,7 @@ export default function AttendanceCheck() {
   // 기존 출석 기록 로드
   useEffect(() => {
     async function fetchAttendance() {
-      if (!selectedDate || (!selectedGrade && !selectedDepartment)) {
-        setAttendanceMap({});
-        return;
-      }
+      if (!selectedDate || (!selectedGrade && !selectedDepartment)) return;
 
       try {
         const params = new URLSearchParams();
@@ -79,11 +80,14 @@ export default function AttendanceCheck() {
         }
 
         const response = await api.get(`/attendance?${params.toString()}`);
-        const map: Record<string, 'present' | 'absent'> = {};
-        for (const record of response.data.attendance || []) {
-          map[record.studentId] = record.status;
+        const records = response.data.attendance || [];
+        if (records.length > 0) {
+          const map: Record<string, 'present' | 'absent'> = {};
+          for (const record of records) {
+            map[record.studentId] = record.status;
+          }
+          setAttendanceMap(map);
         }
-        setAttendanceMap(map);
       } catch (error) {
         console.error('출석 기록 로드 실패:', error);
       }
@@ -220,9 +224,9 @@ export default function AttendanceCheck() {
                 <th className="px-4 py-3 text-left">이름</th>
                 <th className="px-4 py-3 text-left">세례명</th>
                 <th className="px-4 py-3 text-left">부서</th>
-                <th className="px-4 py-3 text-left">달란트</th>
                 <th className="px-4 py-3 text-center">출석</th>
                 <th className="px-4 py-3 text-center">결석</th>
+                <th className="px-4 py-3 text-left">달란트</th>
               </tr>
             </thead>
             <tbody>
@@ -231,7 +235,6 @@ export default function AttendanceCheck() {
                   <td className="px-4 py-3 font-medium">{student.name}</td>
                   <td className="px-4 py-3 text-gray-600">{student.baptismName || '-'}</td>
                   <td className="px-4 py-3">{getDepartmentName(student.departmentId)}</td>
-                  <td className="px-4 py-3">{student.talent}개</td>
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={() => handleAttendanceChange(student.id, 'present')}
@@ -256,6 +259,7 @@ export default function AttendanceCheck() {
                       ✗
                     </button>
                   </td>
+                  <td className="px-4 py-3">{student.talent}개</td>
                 </tr>
               ))}
             </tbody>
