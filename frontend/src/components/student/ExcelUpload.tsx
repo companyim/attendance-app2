@@ -8,6 +8,7 @@ interface SheetInfo {
   headers: string[];
   sampleRows: string[][];
   rowCount: number;
+  suggestedMapping?: Record<string, number>;
 }
 
 type FieldKey = 'name' | 'baptismName' | 'grade' | 'department' | 'phone';
@@ -88,7 +89,14 @@ export default function ExcelUpload({ onSuccess }: { onSuccess?: () => void }) {
       const sheetsData: SheetInfo[] = response.data.sheets;
       setSheets(sheetsData);
       setSelectedSheet(0);
-      setMapping({ name: 0, baptismName: 0, grade: 0, department: 0, phone: 0 });
+      const suggested = sheetsData[0]?.suggestedMapping;
+      setMapping({
+        name: suggested?.name || 0,
+        baptismName: suggested?.baptismName || 0,
+        grade: suggested?.grade || 0,
+        department: suggested?.department || 0,
+        phone: suggested?.phone || 0,
+      });
       setStep('mapping');
     } catch (err: any) {
       setError(err?.userMessage || err.response?.data?.error || '파일을 읽는 중 오류가 발생했습니다.');
@@ -210,7 +218,14 @@ export default function ExcelUpload({ onSuccess }: { onSuccess?: () => void }) {
                           <button key={s.index} type="button"
                             onClick={() => {
                               setSelectedSheet(s.index);
-                              setMapping({ name: 0, baptismName: 0, grade: 0, department: 0, phone: 0 });
+                              const sm = s.suggestedMapping;
+                              setMapping({
+                                name: sm?.name || 0,
+                                baptismName: sm?.baptismName || 0,
+                                grade: sm?.grade || 0,
+                                department: sm?.department || 0,
+                                phone: sm?.phone || 0,
+                              });
                             }}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                               selectedSheet === s.index
@@ -251,6 +266,11 @@ export default function ExcelUpload({ onSuccess }: { onSuccess?: () => void }) {
                     <p className="text-xs text-gray-500 mt-2">
                       이름에 세례명이 함께 있으면 (예: 손유림 루치아) 세례명을 선택 안함으로 두면 자동 분리됩니다.
                     </p>
+                    {mapping.name > 0 && mapping.grade > 0 && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+                        자동으로 열이 감지되었습니다. 확인 후 바로 업로드하세요.
+                      </div>
+                    )}
                   </div>
 
                   {/* 미리보기 테이블 */}

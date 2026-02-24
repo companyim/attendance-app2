@@ -521,12 +521,26 @@ export async function previewExcel(req: Request, res: Response) {
         }
       }
 
+      const suggestedMapping: Record<string, number> = {
+        name: 0, baptismName: 0, grade: 0, department: 0, phone: 0,
+      };
+      headers.forEach((h, i) => {
+        const col = i + 1;
+        const lower = h.toLowerCase();
+        if (lower.includes('이름') && !suggestedMapping.name) suggestedMapping.name = col;
+        else if ((lower.includes('세례') || lower.includes('영명')) && !suggestedMapping.baptismName) suggestedMapping.baptismName = col;
+        else if (lower.includes('학년') && !suggestedMapping.grade) suggestedMapping.grade = col;
+        else if (lower.includes('부서') && !suggestedMapping.department) suggestedMapping.department = col;
+        else if ((lower.includes('연락') || lower.includes('전화') || lower.includes('핸드폰') || lower.includes('휴대')) && !suggestedMapping.phone) suggestedMapping.phone = col;
+      });
+
       return {
         index,
         name: ws.name,
         headers,
         sampleRows,
         rowCount: ws.rowCount,
+        suggestedMapping,
       };
     });
 
