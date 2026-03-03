@@ -5,6 +5,7 @@ import { Department } from '../../types/Department';
 import DepartmentSelect from '../department/DepartmentSelect';
 import DatePicker from './DatePicker';
 import Button from '../common/Button';
+import TalentHistoryModal from '../common/TalentHistoryModal';
 
 export default function DepartmentAttendanceCheck() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
@@ -15,6 +16,7 @@ export default function DepartmentAttendanceCheck() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [talentStudent, setTalentStudent] = useState<Student | null>(null);
 
   // 부서 목록 로드
   useEffect(() => {
@@ -256,13 +258,25 @@ export default function DepartmentAttendanceCheck() {
                         </button>
                       )}
                     </td>
-                    <td className="px-2 md:px-4 py-3 whitespace-nowrap">{student.talent}개</td>
+                    <td className="px-2 md:px-4 py-3 whitespace-nowrap">
+                      <button onClick={() => setTalentStudent(student)} className="text-amber-600 font-medium hover:underline cursor-pointer">{student.talent}개</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+      )}
+
+      {talentStudent && (
+        <TalentHistoryModal
+          isOpen={!!talentStudent}
+          onClose={() => setTalentStudent(null)}
+          studentId={talentStudent.id}
+          studentName={talentStudent.name}
+          currentTalent={talentStudent.talent}
+        />
       )}
     </div>
   );

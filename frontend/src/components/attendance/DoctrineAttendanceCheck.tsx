@@ -4,6 +4,7 @@ import { Student, Grade } from '../../types/Student';
 import GradeFilter from './GradeFilter';
 import DatePicker from './DatePicker';
 import Button from '../common/Button';
+import TalentHistoryModal from '../common/TalentHistoryModal';
 
 export default function DoctrineAttendanceCheck() {
   const [selectedGrade, setSelectedGrade] = useState<Grade | ''>('');
@@ -13,6 +14,7 @@ export default function DoctrineAttendanceCheck() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [talentStudent, setTalentStudent] = useState<Student | null>(null);
 
   // 학생 목록 로드 (학년별)
   useEffect(() => {
@@ -250,13 +252,25 @@ export default function DoctrineAttendanceCheck() {
                         </button>
                       )}
                     </td>
-                    <td className="px-2 md:px-4 py-3 whitespace-nowrap">{student.talent}개</td>
+                    <td className="px-2 md:px-4 py-3 whitespace-nowrap">
+                      <button onClick={() => setTalentStudent(student)} className="text-amber-600 font-medium hover:underline cursor-pointer">{student.talent}개</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+      )}
+
+      {talentStudent && (
+        <TalentHistoryModal
+          isOpen={!!talentStudent}
+          onClose={() => setTalentStudent(null)}
+          studentId={talentStudent.id}
+          studentName={talentStudent.name}
+          currentTalent={talentStudent.talent}
+        />
       )}
     </div>
   );

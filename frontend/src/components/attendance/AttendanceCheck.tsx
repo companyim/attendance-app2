@@ -6,6 +6,7 @@ import GradeFilter from './GradeFilter';
 import DatePicker from './DatePicker';
 import DepartmentSelect from '../department/DepartmentSelect';
 import Button from '../common/Button';
+import TalentHistoryModal from '../common/TalentHistoryModal';
 
 export default function AttendanceCheck() {
   const [selectedGrade, setSelectedGrade] = useState<Grade | ''>('');
@@ -17,6 +18,7 @@ export default function AttendanceCheck() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [talentStudent, setTalentStudent] = useState<Student | null>(null);
 
   // 부서 목록 로드
   useEffect(() => {
@@ -259,12 +261,24 @@ export default function AttendanceCheck() {
                       ✗
                     </button>
                   </td>
-                  <td className="px-4 py-3">{student.talent}개</td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => setTalentStudent(student)} className="text-amber-600 font-medium hover:underline cursor-pointer">{student.talent}개</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {talentStudent && (
+        <TalentHistoryModal
+          isOpen={!!talentStudent}
+          onClose={() => setTalentStudent(null)}
+          studentId={talentStudent.id}
+          studentName={talentStudent.name}
+          currentTalent={talentStudent.talent}
+        />
       )}
     </div>
   );

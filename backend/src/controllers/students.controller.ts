@@ -400,7 +400,7 @@ export async function updateStudent(req: Request, res: Response) {
         ...(name && { name }),
         ...(baptismName !== undefined && { baptismName }),
         ...(grade && { grade }),
-        ...(departmentId !== undefined && { departmentId }),
+        ...(departmentId !== undefined && { departmentId: departmentId || null }),
         ...(studentNumber !== undefined && { studentNumber }),
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),

@@ -8,6 +8,7 @@ import DepartmentSelect from '../components/department/DepartmentSelect';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import ExcelUpload from '../components/student/ExcelUpload';
+import TalentHistoryModal from '../components/common/TalentHistoryModal';
 
 const GRADES: Grade[] = ['유치부', '1학년', '2학년', '첫영성체', '4학년', '5학년', '6학년'];
 
@@ -37,6 +38,7 @@ export default function StudentManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [talentStudent, setTalentStudent] = useState<Student | null>(null);
 
   const { students, loading: studentsLoading } = useStudents({
     grade: selectedGrade || undefined,
@@ -181,7 +183,10 @@ export default function StudentManagement() {
                       {department && <span className="text-purple-600 ml-2">| {department.name}</span>}
                     </p>
                     <div className="text-sm text-gray-600 mt-1">
-                      달란트: {student.talent}개
+                      달란트: <button
+                        onClick={() => setTalentStudent(student)}
+                        className="text-amber-600 font-medium hover:underline cursor-pointer"
+                      >{student.talent}개</button>
                       {student.email && <span> | 이메일: {student.email}</span>}
                       {student.phone && <span> | 전화: {student.phone}</span>}
                     </div>
@@ -290,6 +295,16 @@ export default function StudentManagement() {
           </div>
         </form>
       </Modal>
+
+      {talentStudent && (
+        <TalentHistoryModal
+          isOpen={!!talentStudent}
+          onClose={() => setTalentStudent(null)}
+          studentId={talentStudent.id}
+          studentName={talentStudent.name}
+          currentTalent={talentStudent.talent}
+        />
+      )}
     </div>
   );
 }
