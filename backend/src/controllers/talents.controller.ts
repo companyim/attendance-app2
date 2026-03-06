@@ -19,9 +19,9 @@ export async function getStudentTalent(req: Request, res: Response) {
       return res.status(404).json({ error: '학생을 찾을 수 없습니다.' });
     }
 
-    // 거래 내역 조회
     const transactions = await prisma.talentTransaction.findMany({
       where: { studentId },
+      include: { attendance: { select: { date: true, type: true } } },
       orderBy: { createdAt: 'desc' },
     });
 

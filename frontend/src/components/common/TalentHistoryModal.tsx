@@ -8,6 +8,7 @@ interface TalentTransaction {
   amount: number;
   reason: string;
   createdAt: string;
+  attendance?: { date: string; type: string } | null;
 }
 
 interface TalentHistoryModalProps {
@@ -57,6 +58,20 @@ export default function TalentHistoryModal({
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
   };
 
+  const TYPE_NAME: Record<string, string> = {
+    doctrine: '교리출석',
+    mass: '미사출석',
+    department: '부서출석',
+  };
+
+  const getDisplayDate = (tx: TalentTransaction) => {
+    if (tx.attendance?.date) {
+      const label = TYPE_NAME[tx.attendance.type] || '출석';
+      return `${formatDate(tx.attendance.date)} ${label}`;
+    }
+    return formatDate(tx.createdAt);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`${studentName} 달란트 내역`}>
       <div className="mb-3 flex items-center justify-between bg-gradient-to-r from-yellow-50 to-amber-50 p-3 rounded-lg border border-amber-200">
@@ -84,7 +99,7 @@ export default function TalentHistoryModal({
                     </span>
                     <span className="text-sm text-gray-700 truncate">{tx.reason}</span>
                   </div>
-                  <div className="text-xs text-gray-400 mt-0.5">{formatDate(tx.createdAt)}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{getDisplayDate(tx)}</div>
                 </div>
                 <span
                   className={`ml-2 font-bold text-sm whitespace-nowrap ${
