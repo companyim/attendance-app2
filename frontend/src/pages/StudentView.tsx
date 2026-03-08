@@ -22,7 +22,7 @@ interface TalentTransaction {
 }
 
 interface StudentData {
-  student: Student & { department?: Department };
+  student: Student;
   attendance: Attendance[];
   transactions: TalentTransaction[];
 }
@@ -111,7 +111,7 @@ export default function StudentView() {
               <div className="text-sm text-gray-600">학년</div>
             </div>
             <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-xl font-bold text-green-600">{student.department?.name || '미배정'}</div>
+              <div className="text-xl font-bold text-green-600">{student.departments?.map(d => d.name).join(', ') || '미배정'}</div>
               <div className="text-sm text-gray-600">부서</div>
             </div>
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
@@ -156,7 +156,7 @@ export default function StudentView() {
                 >
                   <div>
                     <span className="font-medium">{record.date.split('T')[0]}</span>
-                    <span className="text-gray-600 ml-2">({record.department?.name || '미배정'})</span>
+                    <span className="text-gray-600 ml-2">({record.department?.name || record.departmentName || '미배정'})</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {record.talentGiven > 0 && (

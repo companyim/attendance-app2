@@ -9,7 +9,7 @@ interface Student {
   baptismName?: string;
   grade: string;
   studentNumber?: string;
-  department?: { name: string };
+  departments?: { id: string; name: string }[];
 }
 
 export default function Home() {
@@ -99,7 +99,7 @@ export default function Home() {
                     {student.baptismName && <span className="text-gray-500 ml-1">({student.baptismName})</span>}
                   </div>
                   <div className="text-sm text-gray-600">
-                    {student.grade} | {student.department?.name || '부서 미배정'}
+                    {student.grade} | {student.departments?.map(d => d.name).join(', ') || '부서 미배정'}
                   </div>
                 </button>
               ))}
