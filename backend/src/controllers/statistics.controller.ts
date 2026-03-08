@@ -14,7 +14,7 @@ export async function getOverview(req: Request, res: Response) {
       where.grade = grade;
     }
     if (departmentId) {
-      where.departmentId = departmentId;
+      where.studentDepartments = { some: { departmentId: departmentId as string } };
     }
 
     const [studentCount, attendanceCount, totalTalent] = await Promise.all([
@@ -62,7 +62,7 @@ export async function getStudentStatistics(req: Request, res: Response) {
     const student = await prisma.student.findUnique({
       where: { id },
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
@@ -343,12 +343,12 @@ export async function getTalentStatistics(req: Request, res: Response) {
 
     const where: any = {};
     if (grade) where.grade = grade;
-    if (departmentId) where.departmentId = departmentId;
+    if (departmentId) where.studentDepartments = { some: { departmentId: departmentId as string } };
 
     const students = await prisma.student.findMany({
       where,
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
@@ -601,7 +601,7 @@ export async function exportAllDataExcel(req: Request, res: Response) {
     ];
 
     const students = await prisma.student.findMany({
-      include: { department: true },
+      include: { studentDepartments: { include: { department: true } } },
       orderBy: [{ grade: 'asc' }, { createdAt: 'asc' }],
     });
 
@@ -624,7 +624,7 @@ export async function exportAllDataExcel(req: Request, res: Response) {
         name: student.name,
         baptismName: student.baptismName || '',
         grade: student.grade,
-        department: student.department?.name || '',
+        department: (student as any).studentDepartments?.map((sd: any) => sd.department?.name).join(', ') || '',
         talent: student.talent,
       });
     });
@@ -733,7 +733,7 @@ export async function exportAllDataExcel(req: Request, res: Response) {
 
     const departments = await prisma.department.findMany();
     for (const dept of departments) {
-      const deptStudentCount = await prisma.student.count({
+      const deptStudentCount = await prisma.studentDepartment.count({
         where: { departmentId: dept.id },
       });
 
@@ -932,12 +932,11 @@ export async function exportAllDataExcel(req: Request, res: Response) {
 
     // 부서가 있는 학생만 (부서순, 등록순)
     const studentsWithDept = await prisma.student.findMany({
-      where: { departmentId: { not: null } },
-      include: { department: true },
-      orderBy: [{ department: { name: 'asc' } }, { createdAt: 'asc' }],
+      where: { studentDepartments: { some: {} } },
+      include: { studentDepartments: { include: { department: true } } },
+      orderBy: [{ createdAt: 'asc' }],
     });
 
-    // 학번 부여 및 행 추가
     const deptCountersForSheet: Record<string, number> = {};
     studentsWithDept.forEach(student => {
       if (!deptCountersForSheet[student.grade]) deptCountersForSheet[student.grade] = 0;
@@ -952,7 +951,7 @@ export async function exportAllDataExcel(req: Request, res: Response) {
       const rowData: any = {
         studentNumber,
         name: student.name,
-        department: student.department?.name || '',
+        department: (student as any).studentDepartments?.map((sd: any) => sd.department?.name).join(', ') || '',
       };
 
       deptDateList.forEach(date => {

@@ -15,6 +15,7 @@ export default function MassAttendanceCheck() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [talentStudent, setTalentStudent] = useState<Student | null>(null);
+  const [existingRecordIds, setExistingRecordIds] = useState<Set<string>>(new Set());
 
   // 학생 목록 로드 (학년별)
   useEffect(() => {
@@ -32,9 +33,8 @@ export default function MassAttendanceCheck() {
         const response = await api.get(`/students?${params.toString()}`);
         const loaded = response.data.students || [];
         setStudents(loaded);
-        const defaultMap: Record<string, 'present' | 'absent'> = {};
-        for (const s of loaded) { defaultMap[s.id] = 'present'; }
-        setAttendanceMap(defaultMap);
+        setAttendanceMap({});
+        setExistingRecordIds(new Set());
       } catch (error) {
         console.error('학생 목록 로드 실패:', error);
       } finally {
@@ -44,7 +44,6 @@ export default function MassAttendanceCheck() {
     fetchStudents();
   }, [selectedGrade]);
 
-  // 기존 출석 기록 로드
   useEffect(() => {
     async function fetchAttendance() {
       if (!selectedDate || !selectedGrade) return;
@@ -57,13 +56,14 @@ export default function MassAttendanceCheck() {
 
         const response = await api.get(`/attendance?${params.toString()}`);
         const records = response.data.attendance || [];
-        if (records.length > 0) {
-          const map: Record<string, 'present' | 'absent'> = {};
-          for (const record of records) {
-            map[record.studentId] = record.status;
-          }
-          setAttendanceMap(map);
+        const map: Record<string, 'present' | 'absent'> = {};
+        const existing = new Set<string>();
+        for (const record of records) {
+          map[record.studentId] = record.status;
+          existing.add(record.studentId);
         }
+        setAttendanceMap(map);
+        setExistingRecordIds(existing);
       } catch (error) {
         console.error('출석 기록 로드 실패:', error);
       }
@@ -82,6 +82,14 @@ export default function MassAttendanceCheck() {
     const map: Record<string, 'present' | 'absent'> = {};
     for (const student of students) {
       map[student.id] = 'present';
+    }
+    setAttendanceMap(map);
+  };
+
+  const handleAllAbsent = () => {
+    const map: Record<string, 'present' | 'absent'> = {};
+    for (const student of students) {
+      map[student.id] = 'absent';
     }
     setAttendanceMap(map);
   };
@@ -107,6 +115,7 @@ export default function MassAttendanceCheck() {
 
     try {
       let successCount = 0;
+      let deletedCount = 0;
       
       for (const student of students) {
         const status = attendanceMap[student.id];
@@ -115,14 +124,29 @@ export default function MassAttendanceCheck() {
             studentId: student.id,
             date: selectedDate,
             status,
-            type: 'mass', // 미사출석
-            talentAmount: status === 'present' ? 1 : 0, // 출석시 달란트 1개
+            type: 'mass',
+            talentAmount: status === 'present' ? 1 : 0,
           });
           successCount++;
+        } else if (existingRecordIds.has(student.id)) {
+          await api.post('/attendance/delete-by-key', {
+            studentId: student.id,
+            date: selectedDate,
+            type: 'mass',
+          });
+          deletedCount++;
         }
       }
       
-      setMessage(`미사출석이 저장되었습니다. (${successCount}명, 교리출석과 무관하게 미사만 반영)`);
+      const newExisting = new Set<string>();
+      for (const student of students) {
+        if (attendanceMap[student.id]) newExisting.add(student.id);
+      }
+      setExistingRecordIds(newExisting);
+
+      const parts = [`미사출석이 저장되었습니다. (${successCount}명)`];
+      if (deletedCount > 0) parts.push(`취소 ${deletedCount}명`);
+      setMessage(parts.join(', '));
     } catch (error: any) {
       setMessage(error.response?.data?.error || '저장 중 오류가 발생했습니다.');
     } finally {
@@ -170,6 +194,9 @@ export default function MassAttendanceCheck() {
         <div className="mb-4 flex gap-2 flex-wrap">
           <Button onClick={handleAllPresent} variant="secondary">
             전원 출석
+          </Button>
+          <Button onClick={handleAllAbsent} variant="secondary">
+            전원 결석
           </Button>
           <Button onClick={handleReset} variant="secondary">
             초기화

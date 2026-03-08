@@ -28,8 +28,8 @@ model Department {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  students   Student[]
-  attendance Attendance[]
+  studentDepartments StudentDepartment[]
+  attendance         Attendance[]
 
   @@map("departments")
 }
@@ -37,7 +37,6 @@ model Department {
 // 학생 테이블
 model Student {
   id            String   @id @default(uuid())
-  departmentId  String?  @map("department_id")
   name          String
   baptismName   String?  @map("baptism_name")
   studentNumber String?  @map("student_number")
@@ -48,14 +47,29 @@ model Student {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  department          Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  studentDepartments  StudentDepartment[]
   attendance          Attendance[]
   talentTransactions  TalentTransaction[]
 
-  @@index([departmentId], name: "students_department_id_idx")
   @@index([grade], name: "students_grade_idx")
   @@index([name], name: "students_name_idx")
   @@map("students")
+}
+
+// 학생-부서 다대다 조인 테이블
+model StudentDepartment {
+  id           String   @id @default(uuid())
+  studentId    String   @map("student_id")
+  departmentId String   @map("department_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, departmentId])
+  @@index([studentId], name: "student_departments_student_id_idx")
+  @@index([departmentId], name: "student_departments_department_id_idx")
+  @@map("student_departments")
 }
 
 // 출석 기록 테이블

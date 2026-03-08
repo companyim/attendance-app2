@@ -133,8 +133,7 @@ export default function AttendanceCheck() {
       for (const student of students) {
         const status = attendanceMap[student.id];
         if (status) {
-          // 부서가 선택되어 있으면 선택된 부서 사용, 아니면 학생의 기본 부서 사용
-          const departmentId = selectedDepartment || student.departmentId;
+          const departmentId = selectedDepartment || student.departments?.[0]?.id;
           
           if (!departmentId) {
             skipCount++;
@@ -161,12 +160,6 @@ export default function AttendanceCheck() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const getDepartmentName = (departmentId: string | null) => {
-    if (!departmentId) return '미배정';
-    const dept = departments.find(d => d.id === departmentId);
-    return dept?.name || '미배정';
   };
 
   return (
@@ -236,7 +229,7 @@ export default function AttendanceCheck() {
                 <tr key={student.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">{student.name}</td>
                   <td className="px-4 py-3 text-gray-600">{student.baptismName || '-'}</td>
-                  <td className="px-4 py-3">{getDepartmentName(student.departmentId)}</td>
+                  <td className="px-4 py-3">{student.departments?.map(d => d.name).join(', ') || '미배정'}</td>
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={() => handleAttendanceChange(student.id, 'present')}

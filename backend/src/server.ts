@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { connectDatabase, disconnectDatabase } from './config/database';
+import { migrateDepartmentRelation } from './scripts/migrateDepartments';
 import { errorHandler } from './middleware/error.middleware';
 import authRoutes from './routes/auth.routes';
 import departmentRoutes from './routes/departments.routes';
@@ -76,12 +77,13 @@ app.use((req, res) => {
 
 // 서버 시작
 async function startServer() {
-  // 데이터베이스 연결
   const dbConnected = await connectDatabase();
   if (!dbConnected) {
     console.error('데이터베이스 연결 실패. 서버를 종료합니다.');
     process.exit(1);
   }
+
+  await migrateDepartmentRelation();
 
   // 0.0.0.0으로 바인딩하여 모든 네트워크 인터페이스에서 접근 가능하게 함
   app.listen(PORT, '0.0.0.0', () => {

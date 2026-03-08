@@ -11,7 +11,7 @@ export async function getStudentTalent(req: Request, res: Response) {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
@@ -30,7 +30,7 @@ export async function getStudentTalent(req: Request, res: Response) {
         id: student.id,
         name: student.name,
         talent: student.talent,
-        department: student.department,
+        departments: student.studentDepartments?.map((sd: any) => sd.department) || [],
       },
       transactions,
     });
@@ -50,7 +50,7 @@ export async function getStudentTalentByName(req: Request, res: Response) {
     const student = await prisma.student.findFirst({
       where: { name: studentName },
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
@@ -58,7 +58,6 @@ export async function getStudentTalentByName(req: Request, res: Response) {
       return res.status(404).json({ error: '학생을 찾을 수 없습니다.' });
     }
 
-    // 거래 내역 조회
     const transactions = await prisma.talentTransaction.findMany({
       where: { studentId: student.id },
       orderBy: { createdAt: 'desc' },
@@ -69,7 +68,7 @@ export async function getStudentTalentByName(req: Request, res: Response) {
         id: student.id,
         name: student.name,
         talent: student.talent,
-        department: student.department,
+        departments: student.studentDepartments?.map((sd: any) => sd.department) || [],
       },
       transactions,
     });
@@ -114,7 +113,7 @@ export async function getTalentTransactions(req: Request, res: Response) {
       include: {
         student: {
           include: {
-            department: true,
+            studentDepartments: { include: { department: true } },
           },
         },
       },
@@ -189,14 +188,14 @@ export async function getLeaderboard(req: Request, res: Response) {
 
     const where: any = {};
     if (grade) where.grade = grade;
-    if (departmentId) where.departmentId = departmentId;
+    if (departmentId) where.studentDepartments = { some: { departmentId: departmentId as string } };
 
     const students = await prisma.student.findMany({
       where,
       orderBy: { talent: 'desc' },
       take: parseInt(limit as string, 10),
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
@@ -214,11 +213,16 @@ export async function getDepartmentTalent(req: Request, res: Response) {
   try {
     const { departmentId } = req.params;
 
-    const students = await prisma.student.findMany({
+    const studentDepts = await prisma.studentDepartment.findMany({
       where: { departmentId },
+      include: { student: true },
+    });
+    const studentIds = studentDepts.map(sd => sd.studentId);
+    const students = await prisma.student.findMany({
+      where: { id: { in: studentIds } },
       orderBy: { talent: 'desc' },
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
@@ -249,7 +253,7 @@ export async function getGradeTalent(req: Request, res: Response) {
       where: { grade },
       orderBy: { talent: 'desc' },
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 

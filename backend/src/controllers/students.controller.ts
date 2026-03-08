@@ -100,7 +100,7 @@ export async function getStudents(req: Request, res: Response) {
     }
 
     if (departmentId) {
-      where.departmentId = departmentId;
+      where.studentDepartments = { some: { departmentId: departmentId as string } };
     }
 
     const [studentsRaw, total] = await Promise.all([
@@ -109,7 +109,7 @@ export async function getStudents(req: Request, res: Response) {
         skip,
         take: limitNum,
         include: {
-          department: true,
+          studentDepartments: { include: { department: true } },
         },
         orderBy: [
           { grade: 'asc' },
@@ -119,8 +119,13 @@ export async function getStudents(req: Request, res: Response) {
       prisma.student.count({ where }),
     ]);
 
-    // 자동 번호 부여
-    const students = assignStudentNumbers(studentsRaw);
+    const studentsWithDepts = studentsRaw.map((s: any) => ({
+      ...s,
+      departments: s.studentDepartments?.map((sd: any) => sd.department) || [],
+      studentDepartments: undefined,
+    }));
+
+    const students = assignStudentNumbers(studentsWithDepts);
 
     return res.json({
       students,
@@ -152,12 +157,17 @@ export async function getStudentByName(req: Request, res: Response) {
         name: { contains: name as string },
       },
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
-    // 자동 번호 부여
-    const students = assignStudentNumbers(studentsRaw);
+    const studentsWithDepts = studentsRaw.map((s: any) => ({
+      ...s,
+      departments: s.studentDepartments?.map((sd: any) => sd.department) || [],
+      studentDepartments: undefined,
+    }));
+
+    const students = assignStudentNumbers(studentsWithDepts);
 
     return res.json({ students });
   } catch (error: any) {
@@ -173,18 +183,23 @@ export async function getStudent(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
-    const student = await prisma.student.findUnique({
+    const studentRaw = await prisma.student.findUnique({
       where: { id },
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
-    if (!student) {
+    if (!studentRaw) {
       return res.status(404).json({ error: '학생을 찾을 수 없습니다.' });
     }
 
-    // 출석 기록 조회
+    const student = {
+      ...studentRaw,
+      departments: studentRaw.studentDepartments?.map((sd: any) => sd.department) || [],
+      studentDepartments: undefined,
+    };
+
     const attendance = await prisma.attendance.findMany({
       where: { studentId: id },
       include: {
@@ -194,7 +209,6 @@ export async function getStudent(req: Request, res: Response) {
       take: 20,
     });
 
-    // 달란트 거래 내역 조회
     const transactions = await prisma.talentTransaction.findMany({
       where: { studentId: id },
       orderBy: { createdAt: 'desc' },
@@ -220,28 +234,32 @@ export async function getStudentDetailByName(req: Request, res: Response) {
   try {
     const { studentName } = req.params;
 
-    const studentRaw = await prisma.student.findFirst({
+    const studentFound = await prisma.student.findFirst({
       where: { name: studentName },
       include: {
-        department: true,
+        studentDepartments: { include: { department: true } },
       },
     });
 
-    if (!studentRaw) {
+    if (!studentFound) {
       return res.status(404).json({ error: '학생을 찾을 수 없습니다.' });
     }
 
-    // 같은 학년의 모든 학생을 가져와서 번호 계산
     const sameGradeStudents = await prisma.student.findMany({
-      where: { grade: studentRaw.grade },
+      where: { grade: studentFound.grade },
       orderBy: { name: 'asc' },
     });
     
-    const prefix = getGradePrefix(studentRaw.grade);
-    const index = sameGradeStudents.findIndex(s => s.id === studentRaw.id);
+    const prefix = getGradePrefix(studentFound.grade);
+    const index = sameGradeStudents.findIndex(s => s.id === studentFound.id);
     const studentNumber = `${prefix}-${index + 1}`;
 
-    const student = { ...studentRaw, studentNumber };
+    const student = {
+      ...studentFound,
+      studentNumber,
+      departments: studentFound.studentDepartments?.map((sd: any) => sd.department) || [],
+      studentDepartments: undefined,
+    };
 
     // 출석 기록 조회
     const attendance = await prisma.attendance.findMany({
@@ -278,6 +296,7 @@ export async function createStudent(req: Request, res: Response) {
       name,
       baptismName,
       grade,
+      departmentIds,
       departmentId,
       studentNumber,
       email,
@@ -288,64 +307,68 @@ export async function createStudent(req: Request, res: Response) {
       return res.status(400).json({ error: '이름과 학년은 필수입니다.' });
     }
 
-    // 학년 유효성 검사
     const validGrades = ['유치부', '1학년', '2학년', '첫영성체', '4학년', '5학년', '6학년'];
     if (!validGrades.includes(grade)) {
       return res.status(400).json({ error: '유효하지 않은 학년입니다.' });
     }
 
-    // 부서 확인
-    if (departmentId) {
-      const department = await prisma.department.findUnique({
-        where: { id: departmentId },
-      });
-      if (!department) {
-        return res.status(404).json({ error: '부서를 찾을 수 없습니다.' });
+    const deptIds: string[] = departmentIds || (departmentId ? [departmentId] : []);
+
+    for (const dId of deptIds) {
+      const dept = await prisma.department.findUnique({ where: { id: dId } });
+      if (!dept) {
+        return res.status(404).json({ error: `부서를 찾을 수 없습니다: ${dId}` });
       }
     }
 
-    // 같은 학년의 모든 학생을 가져와서 가나다순 정렬
     const sameGradeStudents = await prisma.student.findMany({
       where: { grade },
       orderBy: { name: 'asc' },
     });
 
-    // 가나다순 정렬
-    sameGradeStudents.sort((a, b) => {
-      const nameA = a.name || '';
-      const nameB = b.name || '';
-      return nameA.localeCompare(nameB, 'ko');
-    });
+    sameGradeStudents.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
 
-    // 새 학생을 포함한 가나다순 정렬하여 위치 확인
     const allStudents = [...sameGradeStudents, { name, grade } as any];
-    allStudents.sort((a, b) => {
-      const nameA = a.name || '';
-      const nameB = b.name || '';
-      return nameA.localeCompare(nameB, 'ko');
-    });
+    allStudents.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
 
-    // 새 학생의 가나다순 위치에 맞는 번호 할당
     const newStudentIndex = allStudents.findIndex(s => s.name === name);
     const prefix = getGradePrefix(grade);
     const autoStudentNumber = `${prefix}-${newStudentIndex + 1}`;
 
-    const student = await prisma.student.create({
-      data: {
-        name,
-        baptismName,
-        grade,
-        departmentId: departmentId || null,
-        studentNumber: autoStudentNumber,
-        email: email || null,
-        phone: phone || null,
-      },
-      include: {
-        department: true,
-      },
+    const student = await prisma.$transaction(async (tx) => {
+      const created = await tx.student.create({
+        data: {
+          name,
+          baptismName,
+          grade,
+          studentNumber: autoStudentNumber,
+          email: email || null,
+          phone: phone || null,
+        },
+      });
+
+      if (deptIds.length > 0) {
+        await tx.studentDepartment.createMany({
+          data: deptIds.map(dId => ({
+            studentId: created.id,
+            departmentId: dId,
+          })),
+        });
+      }
+
+      return tx.student.findUnique({
+        where: { id: created.id },
+        include: { studentDepartments: { include: { department: true } } },
+      });
     });
 
-    return res.status(201).json(student);
+    const result = {
+      ...student,
+      departments: (student as any)?.studentDepartments?.map((sd: any) => sd.department) || [],
+      studentDepartments: undefined,
+    };
+
+    return res.status(201).json(result);
   } catch (error: any) {
     console.error('학생 등록 오류:', error);
     return res.status(500).json({ error: '학생 등록 중 오류가 발생했습니다.' });
@@ -362,22 +385,18 @@ export async function updateStudent(req: Request, res: Response) {
       name,
       baptismName,
       grade,
+      departmentIds,
       departmentId,
       studentNumber,
       email,
       phone,
     } = req.body;
 
-    // 학생 존재 확인
-    const existing = await prisma.student.findUnique({
-      where: { id },
-    });
-
+    const existing = await prisma.student.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ error: '학생을 찾을 수 없습니다.' });
     }
 
-    // 학년 유효성 검사
     if (grade) {
       const validGrades = ['유치부', '1학년', '2학년', '첫영성체', '4학년', '5학년', '6학년'];
       if (!validGrades.includes(grade)) {
@@ -385,34 +404,48 @@ export async function updateStudent(req: Request, res: Response) {
       }
     }
 
-    // 부서 확인
-    if (departmentId) {
-      const department = await prisma.department.findUnique({
-        where: { id: departmentId },
-      });
-      if (!department) {
-        return res.status(404).json({ error: '부서를 찾을 수 없습니다.' });
-      }
-    }
-
     const updateData: any = {};
     if (name) updateData.name = name;
     if (grade) updateData.grade = grade;
     if (baptismName !== undefined) updateData.baptismName = baptismName || null;
-    if (departmentId !== undefined) updateData.departmentId = departmentId || null;
     if (studentNumber !== undefined) updateData.studentNumber = studentNumber || null;
     if (email !== undefined) updateData.email = email || null;
     if (phone !== undefined) updateData.phone = phone || null;
 
-    const student = await prisma.student.update({
-      where: { id },
-      data: updateData,
-      include: {
-        department: true,
-      },
+    const deptIds: string[] | undefined = departmentIds !== undefined
+      ? departmentIds
+      : departmentId !== undefined
+        ? (departmentId ? [departmentId] : [])
+        : undefined;
+
+    const student = await prisma.$transaction(async (tx) => {
+      await tx.student.update({ where: { id }, data: updateData });
+
+      if (deptIds !== undefined) {
+        await tx.studentDepartment.deleteMany({ where: { studentId: id } });
+        if (deptIds.length > 0) {
+          await tx.studentDepartment.createMany({
+            data: deptIds.map(dId => ({
+              studentId: id,
+              departmentId: dId,
+            })),
+          });
+        }
+      }
+
+      return tx.student.findUnique({
+        where: { id },
+        include: { studentDepartments: { include: { department: true } } },
+      });
     });
 
-    return res.json(student);
+    const result = {
+      ...student,
+      departments: (student as any)?.studentDepartments?.map((sd: any) => sd.department) || [],
+      studentDepartments: undefined,
+    };
+
+    return res.json(result);
   } catch (error: any) {
     console.error('학생 수정 오류:', error);
     return res.status(500).json({ error: error.message || '학생 수정 중 오류가 발생했습니다.' });
@@ -425,36 +458,38 @@ export async function updateStudent(req: Request, res: Response) {
 export async function updateStudentDepartment(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const { departmentId } = req.body;
+    const { departmentIds } = req.body;
 
-    // 학생 존재 확인
-    const existing = await prisma.student.findUnique({
-      where: { id },
-    });
-
+    const existing = await prisma.student.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ error: '학생을 찾을 수 없습니다.' });
     }
 
-    // 부서 확인
-    if (departmentId) {
-      const department = await prisma.department.findUnique({
-        where: { id: departmentId },
-      });
-      if (!department) {
-        return res.status(404).json({ error: '부서를 찾을 수 없습니다.' });
-      }
-    }
+    const deptIds: string[] = departmentIds || [];
 
-    const student = await prisma.student.update({
-      where: { id },
-      data: { departmentId },
-      include: {
-        department: true,
-      },
+    const student = await prisma.$transaction(async (tx) => {
+      await tx.studentDepartment.deleteMany({ where: { studentId: id } });
+      if (deptIds.length > 0) {
+        await tx.studentDepartment.createMany({
+          data: deptIds.map(dId => ({
+            studentId: id,
+            departmentId: dId,
+          })),
+        });
+      }
+      return tx.student.findUnique({
+        where: { id },
+        include: { studentDepartments: { include: { department: true } } },
+      });
     });
 
-    return res.json(student);
+    const result = {
+      ...student,
+      departments: (student as any)?.studentDepartments?.map((sd: any) => sd.department) || [],
+      studentDepartments: undefined,
+    };
+
+    return res.json(result);
   } catch (error: any) {
     console.error('학생 부서 변경 오류:', error);
     return res.status(500).json({ error: '부서 변경 중 오류가 발생했습니다.' });
@@ -678,12 +713,16 @@ export async function uploadStudentsExcel(req: Request, res: Response) {
         return;
       }
 
+      const departmentNames = rawDepartment
+        ? rawDepartment.split(/[,，\/]/).map((d: string) => d.trim()).filter(Boolean)
+        : [];
+
       students.push({
         name,
         baptismName,
         grade,
         phone: rawPhone || null,
-        departmentName: rawDepartment || null,
+        departmentNames,
         studentNumber: null,
       });
     });
@@ -692,14 +731,11 @@ export async function uploadStudentsExcel(req: Request, res: Response) {
       return res.status(400).json({ error: '유효한 데이터가 없습니다.', errors });
     }
 
-    // 부서 이름으로 부서 ID 매핑 (없으면 생성)
     const departments = await prisma.department.findMany();
     const deptMap = new Map(departments.map(d => [d.name, d.id]));
 
-    // 엑셀에 있는 부서 이름들 수집
-    const uniqueDeptNames = new Set(students.map(s => s.departmentName).filter(Boolean));
+    const uniqueDeptNames = new Set(students.flatMap((s: any) => s.departmentNames));
     
-    // 없는 부서 생성
     for (const deptName of uniqueDeptNames) {
       if (!deptMap.has(deptName)) {
         const newDept = await prisma.department.create({
@@ -729,29 +765,21 @@ export async function uploadStudentsExcel(req: Request, res: Response) {
     const created: any[] = [];
     const skipped: any[] = [];
 
-    console.log('부서 맵:', Object.fromEntries(deptMap));
-
     for (const student of students) {
-      console.log(`학생: ${student.name}, 부서명: "${student.departmentName}"`);
-      const departmentId = student.departmentName ? deptMap.get(student.departmentName) : null;
-      console.log(`-> 매핑된 부서ID: ${departmentId}`);
+      const deptIds = (student.departmentNames as string[])
+        .map((dn: string) => deptMap.get(dn))
+        .filter(Boolean) as string[];
 
-      // 이미 존재하는 학생 확인 (이름 + 학년으로)
       const existing = await prisma.student.findFirst({
-        where: {
-          name: student.name,
-          grade: student.grade,
-        },
+        where: { name: student.name, grade: student.grade },
       });
 
       if (existing) {
-        // 기존 학생의 부서 업데이트
-        if (departmentId && existing.departmentId !== departmentId) {
-          await prisma.student.update({
-            where: { id: existing.id },
-            data: { departmentId },
+        if (deptIds.length > 0) {
+          await prisma.studentDepartment.deleteMany({ where: { studentId: existing.id } });
+          await prisma.studentDepartment.createMany({
+            data: deptIds.map(dId => ({ studentId: existing.id, departmentId: dId })),
           });
-          console.log(`-> 기존 학생 부서 업데이트: ${existing.name} -> ${departmentId}`);
           skipped.push({ ...student, reason: '기존 학생 부서 업데이트됨' });
         } else {
           skipped.push({ ...student, reason: '이미 존재하는 학생' });
@@ -764,11 +792,16 @@ export async function uploadStudentsExcel(req: Request, res: Response) {
           name: student.name,
           baptismName: student.baptismName,
           grade: student.grade,
-          departmentId: departmentId || null,
           studentNumber: student.studentNumber,
           phone: student.phone || null,
         },
       });
+
+      if (deptIds.length > 0) {
+        await prisma.studentDepartment.createMany({
+          data: deptIds.map(dId => ({ studentId: createdStudent.id, departmentId: dId })),
+        });
+      }
 
       created.push(createdStudent);
     }
@@ -796,18 +829,11 @@ export async function uploadStudentsExcel(req: Request, res: Response) {
  */
 export async function deleteAllStudents(req: Request, res: Response) {
   try {
-    // 트랜잭션으로 모든 데이터 삭제
     await prisma.$transaction(async (tx) => {
-      // 1. 달란트 거래 내역 삭제
       await tx.talentTransaction.deleteMany({});
-      
-      // 2. 출석 기록 삭제
       await tx.attendance.deleteMany({});
-      
-      // 3. 학생 삭제
+      await tx.studentDepartment.deleteMany({});
       await tx.student.deleteMany({});
-      
-      // 4. 부서 삭제
       await tx.department.deleteMany({});
     });
 

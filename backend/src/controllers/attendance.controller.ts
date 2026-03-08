@@ -80,7 +80,7 @@ export async function getAttendance(req: Request, res: Response) {
         include: {
           student: {
             include: {
-              department: true,
+              studentDepartments: { include: { department: true } },
             },
           },
           department: true,
@@ -516,6 +516,59 @@ export async function deleteAttendance(req: Request, res: Response) {
 }
 
 /**
+ * 출석 기록 삭제 (studentId + date + type 기반, 달란트 복구 포함)
+ */
+export async function deleteAttendanceByKey(req: Request, res: Response) {
+  try {
+    const { studentId, date, type } = req.body;
+
+    if (!studentId || !date || !type) {
+      return res.status(400).json({ error: 'studentId, date, type은 필수입니다.' });
+    }
+
+    const existing = await prisma.attendance.findUnique({
+      where: {
+        studentId_date_type: {
+          studentId,
+          date: new Date(date),
+          type,
+        },
+      },
+    });
+
+    if (!existing) {
+      return res.json({ success: true, message: '삭제할 기록이 없습니다.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (existing.status === 'present' && existing.talentGiven > 0) {
+        await tx.student.update({
+          where: { id: existing.studentId },
+          data: { talent: { decrement: existing.talentGiven } },
+        });
+
+        await tx.talentTransaction.create({
+          data: {
+            studentId: existing.studentId,
+            type: 'spend',
+            amount: -existing.talentGiven,
+            reason: '출석 취소로 인한 달란트 회수',
+            attendanceId: existing.id,
+          },
+        });
+      }
+
+      await tx.attendance.delete({ where: { id: existing.id } });
+    });
+
+    return res.json({ success: true, message: '출석 기록이 삭제되었습니다.' });
+  } catch (error: any) {
+    console.error('출석 기록 삭제 오류:', error);
+    return res.status(500).json({ error: '출석 기록 삭제 중 오류가 발생했습니다.' });
+  }
+}
+
+/**
  * 학년별 출석 기록 조회
  */
 export async function getAttendanceByGrade(req: Request, res: Response) {
@@ -548,7 +601,7 @@ export async function getAttendanceByGrade(req: Request, res: Response) {
       include: {
         student: {
           include: {
-            department: true,
+            studentDepartments: { include: { department: true } },
           },
         },
         department: true,
@@ -590,7 +643,7 @@ export async function getAttendanceByDepartment(req: Request, res: Response) {
       include: {
         student: {
           include: {
-            department: true,
+            studentDepartments: { include: { department: true } },
           },
         },
         department: true,

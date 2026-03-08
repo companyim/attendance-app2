@@ -13,6 +13,7 @@ router.get('/department/:departmentId', attendanceController.getAttendanceByDepa
 
 // 관리자 전용 API
 router.post('/', requireAdmin, attendanceController.upsertAttendance);
+router.post('/delete-by-key', requireAdmin, attendanceController.deleteAttendanceByKey);
 router.put('/:id', requireAdmin, attendanceController.updateAttendance);
 router.delete('/:id', requireAdmin, attendanceController.deleteAttendance);
 

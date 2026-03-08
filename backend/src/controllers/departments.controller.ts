@@ -25,7 +25,7 @@ export async function getDepartment(req: Request, res: Response) {
     const department = await prisma.department.findUnique({
       where: { id },
       include: {
-        students: true,
+        studentDepartments: { include: { student: true } },
       },
     });
 
@@ -124,8 +124,7 @@ export async function deleteDepartment(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
-    // 소속 학생 확인
-    const studentCount = await prisma.student.count({
+    const studentCount = await prisma.studentDepartment.count({
       where: { departmentId: id },
     });
 
@@ -152,10 +151,12 @@ export async function deleteDepartment(req: Request, res: Response) {
 export async function getDepartmentStudents(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const students = await prisma.student.findMany({
+    const studentDepts = await prisma.studentDepartment.findMany({
       where: { departmentId: id },
-      orderBy: { name: 'asc' },
+      include: { student: true },
+      orderBy: { student: { name: 'asc' } },
     });
+    const students = studentDepts.map(sd => sd.student);
     return res.json(students);
   } catch (error: any) {
     console.error('부서별 학생 목록 조회 오류:', error);

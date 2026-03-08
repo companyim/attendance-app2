@@ -16,7 +16,7 @@ interface StudentFormData {
   name: string;
   baptismName: string;
   grade: Grade;
-  departmentId: string;
+  departmentIds: string[];
   email: string;
   phone: string;
 }
@@ -31,7 +31,7 @@ export default function StudentManagement() {
     name: '',
     baptismName: '',
     grade: '1학년',
-    departmentId: '',
+    departmentIds: [],
     email: '',
     phone: '',
   });
@@ -55,7 +55,7 @@ export default function StudentManagement() {
         name: student.name,
         baptismName: student.baptismName || '',
         grade: student.grade,
-        departmentId: student.departmentId || '',
+        departmentIds: student.departments?.map(d => d.id) || [],
         email: student.email || '',
         phone: student.phone || '',
       });
@@ -65,7 +65,7 @@ export default function StudentManagement() {
         name: '',
         baptismName: '',
         grade: '1학년',
-        departmentId: '',
+        departmentIds: [],
         email: '',
         phone: '',
       });
@@ -86,12 +86,18 @@ export default function StudentManagement() {
     setLoading(true);
 
     try {
+      const payload = {
+        name: formData.name,
+        baptismName: formData.baptismName,
+        grade: formData.grade,
+        departmentIds: formData.departmentIds,
+        email: formData.email,
+        phone: formData.phone,
+      };
       if (editingStudent) {
-        // 수정
-        await api.put(`/students/${editingStudent.id}`, formData);
+        await api.put(`/students/${editingStudent.id}`, payload);
       } else {
-        // 등록
-        await api.post('/students', formData);
+        await api.post('/students', payload);
       }
       closeModal();
       window.location.reload(); // 목록 새로고침
@@ -129,7 +135,38 @@ export default function StudentManagement() {
     }
   };
 
-  const departmentMap = new Map(departments.map((d) => [d.id, d]));
+  const gospelQuizDept = departments.find(d => d.name === '복음퀴즈부');
+
+  const mainDepartmentId = formData.departmentIds.find(
+    id => !gospelQuizDept || id !== gospelQuizDept.id
+  ) || '';
+  const hasGospelQuiz = gospelQuizDept
+    ? formData.departmentIds.includes(gospelQuizDept.id)
+    : false;
+
+  const handleMainDeptChange = (newMainId: string) => {
+    const ids = formData.departmentIds.filter(
+      id => gospelQuizDept && id === gospelQuizDept.id
+    );
+    if (newMainId) ids.unshift(newMainId);
+    setFormData({ ...formData, departmentIds: ids });
+  };
+
+  const handleGospelQuizToggle = () => {
+    if (!gospelQuizDept) return;
+    const has = formData.departmentIds.includes(gospelQuizDept.id);
+    if (has) {
+      setFormData({
+        ...formData,
+        departmentIds: formData.departmentIds.filter(id => id !== gospelQuizDept.id),
+      });
+    } else {
+      setFormData({
+        ...formData,
+        departmentIds: [...formData.departmentIds, gospelQuizDept.id],
+      });
+    }
+  };
 
   return (
     <div className="p-4">
@@ -170,7 +207,7 @@ export default function StudentManagement() {
       ) : (
         <div className="space-y-2">
           {students.map((student) => {
-            const department = departmentMap.get(student.departmentId);
+            const deptNames = student.departments?.map(d => d.name).join(', ');
             return (
               <div key={student.id} className="bg-white rounded-lg shadow-md p-4">
                 <div className="flex items-center justify-between">
@@ -180,7 +217,7 @@ export default function StudentManagement() {
                       {student.name}
                       {student.baptismName && <span className="text-gray-500 ml-1">({student.baptismName})</span>}
                       <span className="text-gray-600 ml-2">- {student.grade}</span>
-                      {department && <span className="text-purple-600 ml-2">| {department.name}</span>}
+                      {deptNames && <span className="text-purple-600 ml-2">| {deptNames}</span>}
                     </p>
                     <div className="text-sm text-gray-600 mt-1">
                       달란트: <button
@@ -249,17 +286,30 @@ export default function StudentManagement() {
             <div>
               <label className="block mb-1 font-medium">부서</label>
               <select
-                value={formData.departmentId}
-                onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+                value={mainDepartmentId}
+                onChange={(e) => handleMainDeptChange(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg"
               >
                 <option value="">부서 없음</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
+                {departments
+                  .filter(dept => dept.name !== '복음퀴즈부')
+                  .map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
               </select>
+              {gospelQuizDept && (
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasGospelQuiz}
+                    onChange={handleGospelQuizToggle}
+                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">복음퀴즈부 추가</span>
+                </label>
+              )}
             </div>
 
             <div>
