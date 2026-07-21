@@ -37,8 +37,8 @@ export default function Home() {
       if (students.length === 0) {
         setError('학생을 찾을 수 없습니다.');
       } else if (students.length === 1) {
-        // 한 명만 검색되면 바로 상세 페이지로 이동
-        navigate(`/student/${encodeURIComponent(students[0].name)}`);
+        // 한 명만 검색되면 바로 상세 페이지로 이동 (ID로 이동해 동명이인 구분)
+        navigate(`/student/${students[0].id}`);
       } else {
         // 여러 명이면 목록 표시
         setSearchResults(students);
@@ -51,7 +51,7 @@ export default function Home() {
   };
 
   const handleSelectStudent = (student: Student) => {
-    navigate(`/student/${encodeURIComponent(student.name)}`);
+    navigate(`/student/${student.id}`);
   };
 
   return (

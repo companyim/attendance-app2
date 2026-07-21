@@ -16,7 +16,7 @@ function App() {
       <ShopProvider>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/student/:studentName" element={<StudentView />} />
+          <Route path="/student/:studentId" element={<StudentView />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard/*" element={<AdminDashboard />} />
 

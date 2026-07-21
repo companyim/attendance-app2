@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Student } from '../types/Student';
 import { Department } from '../types/Department';
@@ -29,27 +29,28 @@ interface StudentData {
 }
 
 export default function StudentView() {
-  const { studentName } = useParams<{ studentName: string }>();
-  const location = useLocation();
+  const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
-  const [data, setData] = useState<StudentData | null>(location.state as StudentData || null);
-  const [loading, setLoading] = useState(!data);
+  const [data, setData] = useState<StudentData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!data && studentName) {
+    if (studentId) {
       loadStudentData();
     }
-  }, [studentName]);
+  }, [studentId]);
 
   const loadStudentData = async () => {
-    if (!studentName) return;
+    if (!studentId) return;
 
     setLoading(true);
     setError('');
+    setData(null);
 
     try {
-      const response = await api.get(`/students/name/${encodeURIComponent(studentName)}`);
+      // 이름 대신 ID로 조회해 동명이인을 정확히 구분
+      const response = await api.get(`/students/${studentId}`);
       setData(response.data);
     } catch (err: any) {
       setError(err?.userMessage || err.response?.data?.error || '학생 정보를 불러올 수 없습니다.');
