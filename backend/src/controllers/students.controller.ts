@@ -200,7 +200,7 @@ export async function getStudent(req: Request, res: Response) {
       studentDepartments: undefined,
     };
 
-    // 학생 조회: 미사/교리 출석 모두 반환 (부서 출석 제외)
+    // 학생 조회: 미사/교리 전체 이력 (개수 제한 없음 — 과거 기록까지 표시)
     const attendance = await prisma.attendance.findMany({
       where: { studentId: id, type: { in: ['mass', 'doctrine'] } },
       include: {
