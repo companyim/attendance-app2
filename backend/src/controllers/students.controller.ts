@@ -200,9 +200,9 @@ export async function getStudent(req: Request, res: Response) {
       studentDepartments: undefined,
     };
 
-    // 학생 조회 화면의 출석/결석은 미사 출석 기준
+    // 학생 조회: 미사/교리 출석 모두 반환 (부서 출석 제외)
     const attendance = await prisma.attendance.findMany({
-      where: { studentId: id, type: 'mass' },
+      where: { studentId: id, type: { in: ['mass', 'doctrine'] } },
       include: {
         department: true,
       },

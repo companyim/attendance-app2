@@ -32,7 +32,20 @@ interface StudentData {
   transactions: TalentTransaction[];
 }
 
-type HistoryKind = 'present' | 'absent' | null;
+type AttendanceType = 'mass' | 'doctrine';
+type HistoryKind = 'present' | 'absent';
+
+interface HistoryState {
+  type: AttendanceType;
+  kind: HistoryKind;
+}
+
+function summarize(records: Attendance[]) {
+  const present = records.filter((a) => a.status === 'present');
+  const absent = records.filter((a) => a.status === 'absent');
+  const rate = records.length > 0 ? (present.length / records.length) * 100 : 0;
+  return { present, absent, presentCount: present.length, absentCount: absent.length, rate };
+}
 
 export default function StudentView() {
   const { studentId } = useParams<{ studentId: string }>();
@@ -40,7 +53,7 @@ export default function StudentView() {
   const [data, setData] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [historyKind, setHistoryKind] = useState<HistoryKind>(null);
+  const [history, setHistory] = useState<HistoryState | null>(null);
   const [talentOpen, setTalentOpen] = useState(false);
 
   useEffect(() => {
@@ -92,20 +105,17 @@ export default function StudentView() {
 
   const { student, attendance } = data;
 
-  // 미사 출석 기준 (백엔드에서도 type=mass로 내려줌)
-  const massAttendance = attendance.filter((a) => !a.type || a.type === 'mass');
-  const presentRecords = massAttendance.filter((a) => a.status === 'present');
-  const absentRecords = massAttendance.filter((a) => a.status === 'absent');
-  const presentCount = presentRecords.length;
-  const absentCount = absentRecords.length;
-  const attendanceRate =
-    massAttendance.length > 0 ? (presentCount / massAttendance.length) * 100 : 0;
+  const massRecords = attendance.filter((a) => a.type === 'mass');
+  const doctrineRecords = attendance.filter((a) => a.type === 'doctrine' || !a.type);
+  const mass = summarize(massRecords);
+  const doctrine = summarize(doctrineRecords);
 
-  const historyRecords = historyKind === 'present' ? presentRecords : absentRecords;
-  const historyTitle =
-    historyKind === 'present'
-      ? `${student.name} 미사 출석 내역`
-      : `${student.name} 미사 결석 내역`;
+  const historySource = history?.type === 'doctrine' ? doctrine : mass;
+  const historyRecords =
+    history?.kind === 'present' ? historySource.present : historySource.absent;
+  const typeLabel = history?.type === 'doctrine' ? '교리' : '미사';
+  const kindLabel = history?.kind === 'present' ? '출석' : '결석';
+  const historyTitle = `${student.name} ${typeLabel} ${kindLabel} 내역`;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -144,7 +154,7 @@ export default function StudentView() {
               <div className="text-sm text-gray-600">달란트</div>
             </button>
             <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <div className="text-xl font-bold text-purple-600">{attendanceRate.toFixed(1)}%</div>
+              <div className="text-xl font-bold text-purple-600">{mass.rate.toFixed(1)}%</div>
               <div className="text-sm text-gray-600">미사 출석률</div>
             </div>
           </div>
@@ -156,27 +166,54 @@ export default function StudentView() {
           <div className="flex gap-4">
             <button
               type="button"
-              onClick={() => setHistoryKind('present')}
+              onClick={() => setHistory({ type: 'mass', kind: 'present' })}
               className="flex-1 text-center p-3 bg-green-100 rounded-lg hover:ring-2 hover:ring-green-400 transition cursor-pointer"
             >
-              <div className="text-2xl font-bold text-green-600">{presentCount}</div>
+              <div className="text-2xl font-bold text-green-600">{mass.presentCount}</div>
               <div className="text-sm text-gray-600">출석</div>
             </button>
             <button
               type="button"
-              onClick={() => setHistoryKind('absent')}
+              onClick={() => setHistory({ type: 'mass', kind: 'absent' })}
               className="flex-1 text-center p-3 bg-red-100 rounded-lg hover:ring-2 hover:ring-red-400 transition cursor-pointer"
             >
-              <div className="text-2xl font-bold text-red-600">{absentCount}</div>
+              <div className="text-2xl font-bold text-red-600">{mass.absentCount}</div>
               <div className="text-sm text-gray-600">결석</div>
             </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-bold mb-1">교리 출석 현황</h2>
+          <p className="text-sm text-gray-500 mb-4">숫자를 누르면 내역을 볼 수 있습니다</p>
+          <div className="flex gap-4 mb-4">
+            <button
+              type="button"
+              onClick={() => setHistory({ type: 'doctrine', kind: 'present' })}
+              className="flex-1 text-center p-3 bg-green-100 rounded-lg hover:ring-2 hover:ring-green-400 transition cursor-pointer"
+            >
+              <div className="text-2xl font-bold text-green-600">{doctrine.presentCount}</div>
+              <div className="text-sm text-gray-600">출석</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistory({ type: 'doctrine', kind: 'absent' })}
+              className="flex-1 text-center p-3 bg-red-100 rounded-lg hover:ring-2 hover:ring-red-400 transition cursor-pointer"
+            >
+              <div className="text-2xl font-bold text-red-600">{doctrine.absentCount}</div>
+              <div className="text-sm text-gray-600">결석</div>
+            </button>
+          </div>
+          <div className="text-center p-3 bg-blue-50 rounded-lg">
+            <div className="text-lg font-bold text-blue-600">{doctrine.rate.toFixed(1)}%</div>
+            <div className="text-sm text-gray-600">교리 출석률</div>
           </div>
         </div>
       </div>
 
       <Modal
-        isOpen={historyKind !== null}
-        onClose={() => setHistoryKind(null)}
+        isOpen={history !== null}
+        onClose={() => setHistory(null)}
         title={historyTitle}
       >
         {historyRecords.length === 0 ? (
