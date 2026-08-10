@@ -57,7 +57,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version: 'attendance-2026-08-10-full-history', timestamp: new Date().toISOString() });
 });
 
 // API 라우트
