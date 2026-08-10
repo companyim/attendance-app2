@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
-import { isSundayIn2026 } from '../utils/dateUtils';
+import { isAttendanceSunday, getSundaysInYear } from '../utils/dateUtils';
 
 /**
  * 출석 기록 조회 (인증 불필요, 공개 API)
@@ -104,13 +104,14 @@ export async function getAttendance(req: Request, res: Response) {
 }
 
 /**
- * 2026년 일요일 목록 반환 (인증 불필요, 공개 API)
+ * 지정 연도(기본: 현재 연도)의 일요일 목록 반환 (인증 불필요, 공개 API)
  */
 export async function getAvailableDates(req: Request, res: Response) {
   try {
-    const { getSundaysIn2026 } = await import('../utils/dateUtils');
-    const dates = getSundaysIn2026();
-    return res.json({ dates });
+    const yearParam = parseInt(String(req.query.year || ''), 10);
+    const year = Number.isFinite(yearParam) ? yearParam : new Date().getFullYear();
+    const dates = getSundaysInYear(year);
+    return res.json({ dates, year });
   } catch (error: any) {
     console.error('일요일 목록 조회 오류:', error);
     return res.status(500).json({ error: '일요일 목록 조회 중 오류가 발생했습니다.' });
@@ -137,10 +138,10 @@ export async function upsertAttendance(req: Request, res: Response) {
       return res.status(400).json({ error: '부서 출석은 부서를 선택해야 합니다.' });
     }
 
-    // 날짜 검증: 2026년 일요일만 허용
-    if (!isSundayIn2026(date)) {
+    // 날짜 검증: 일요일만 허용
+    if (!isAttendanceSunday(date)) {
       return res.status(400).json({
-        error: '2026년 일요일만 출석체크가 가능합니다.',
+        error: '일요일만 출석체크가 가능합니다.',
       });
     }
 

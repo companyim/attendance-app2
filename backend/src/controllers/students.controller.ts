@@ -200,23 +200,35 @@ export async function getStudent(req: Request, res: Response) {
       studentDepartments: undefined,
     };
 
+    // 학생 조회 화면의 출석/결석은 미사 출석 기준
     const attendance = await prisma.attendance.findMany({
-      where: { studentId: id },
+      where: { studentId: id, type: 'mass' },
       include: {
         department: true,
       },
       orderBy: { date: 'desc' },
-      take: 20,
     });
 
     const transactions = await prisma.talentTransaction.findMany({
       where: { studentId: id },
+      include: {
+        attendance: { select: { date: true, type: true } },
+      },
       orderBy: { createdAt: 'desc' },
-      take: 20,
     });
 
+    // 학번 표시용
+    const sameGradeStudents = await prisma.student.findMany({
+      where: { grade: studentRaw.grade },
+      orderBy: { name: 'asc' },
+      select: { id: true },
+    });
+    const prefix = getGradePrefix(studentRaw.grade);
+    const index = sameGradeStudents.findIndex((s) => s.id === studentRaw.id);
+    const studentNumber = `${prefix}-${index + 1}`;
+
     return res.json({
-      student,
+      student: { ...student, studentNumber },
       attendance,
       transactions,
     });

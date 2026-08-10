@@ -4,11 +4,14 @@ import api from '../services/api';
 import { Student } from '../types/Student';
 import { Department } from '../types/Department';
 import Button from '../components/common/Button';
+import Modal from '../components/common/Modal';
+import TalentHistoryModal from '../components/common/TalentHistoryModal';
 
 interface Attendance {
   id: string;
   date: string;
   status: 'present' | 'absent';
+  type?: string;
   department: Department;
   departmentName?: string;
   talentGiven: number;
@@ -20,6 +23,7 @@ interface TalentTransaction {
   amount: number;
   reason: string;
   createdAt: string;
+  attendance?: { date: string; type: string } | null;
 }
 
 interface StudentData {
@@ -28,12 +32,16 @@ interface StudentData {
   transactions: TalentTransaction[];
 }
 
+type HistoryKind = 'present' | 'absent' | null;
+
 export default function StudentView() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
   const [data, setData] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [historyKind, setHistoryKind] = useState<HistoryKind>(null);
+  const [talentOpen, setTalentOpen] = useState(false);
 
   useEffect(() => {
     if (studentId) {
@@ -49,7 +57,6 @@ export default function StudentView() {
     setData(null);
 
     try {
-      // 이름 대신 ID로 조회해 동명이인을 정확히 구분
       const response = await api.get(`/students/${studentId}`);
       setData(response.data);
     } catch (err: any) {
@@ -83,29 +90,39 @@ export default function StudentView() {
     );
   }
 
-  const { student, attendance, transactions } = data;
+  const { student, attendance } = data;
 
-  // 출석 통계 계산
-  const presentCount = attendance.filter(a => a.status === 'present').length;
-  const absentCount = attendance.filter(a => a.status === 'absent').length;
-  const attendanceRate = attendance.length > 0 ? (presentCount / attendance.length) * 100 : 0;
+  // 미사 출석 기준 (백엔드에서도 type=mass로 내려줌)
+  const massAttendance = attendance.filter((a) => !a.type || a.type === 'mass');
+  const presentRecords = massAttendance.filter((a) => a.status === 'present');
+  const absentRecords = massAttendance.filter((a) => a.status === 'absent');
+  const presentCount = presentRecords.length;
+  const absentCount = absentRecords.length;
+  const attendanceRate =
+    massAttendance.length > 0 ? (presentCount / massAttendance.length) * 100 : 0;
+
+  const historyRecords = historyKind === 'present' ? presentRecords : absentRecords;
+  const historyTitle =
+    historyKind === 'present'
+      ? `${student.name} 미사 출석 내역`
+      : `${student.name} 미사 결석 내역`;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <Button variant="secondary" onClick={() => navigate('/')}>
             ← 홈으로
           </Button>
         </div>
 
-        {/* 학생 정보 카드 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h1 className="text-2xl font-bold mb-2">
             <span className="text-blue-600 mr-2">[{student.studentNumber}]</span>
             {student.name}
-            {student.baptismName && <span className="text-gray-600 font-normal"> ({student.baptismName})</span>}
+            {student.baptismName && (
+              <span className="text-gray-600 font-normal"> ({student.baptismName})</span>
+            )}
           </h1>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="text-center p-3 bg-blue-50 rounded-lg">
@@ -113,104 +130,94 @@ export default function StudentView() {
               <div className="text-sm text-gray-600">학년</div>
             </div>
             <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-xl font-bold text-green-600">{student.departments?.map(d => d.name).join(', ') || '미배정'}</div>
+              <div className="text-xl font-bold text-green-600">
+                {student.departments?.map((d) => d.name).join(', ') || '미배정'}
+              </div>
               <div className="text-sm text-gray-600">부서</div>
             </div>
-            <div className="text-center p-3 bg-yellow-50 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setTalentOpen(true)}
+              className="text-center p-3 bg-yellow-50 rounded-lg hover:ring-2 hover:ring-amber-300 transition cursor-pointer"
+            >
               <div className="text-xl font-bold text-yellow-600">{student.talent}개</div>
               <div className="text-sm text-gray-600">달란트</div>
-            </div>
+            </button>
             <div className="text-center p-3 bg-purple-50 rounded-lg">
               <div className="text-xl font-bold text-purple-600">{attendanceRate.toFixed(1)}%</div>
-              <div className="text-sm text-gray-600">출석률</div>
+              <div className="text-sm text-gray-600">미사 출석률</div>
             </div>
           </div>
         </div>
 
-        {/* 출석 통계 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">출석 현황</h2>
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1 text-center p-3 bg-green-100 rounded-lg">
+          <h2 className="text-xl font-bold mb-1">미사 출석 현황</h2>
+          <p className="text-sm text-gray-500 mb-4">숫자를 누르면 내역을 볼 수 있습니다</p>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setHistoryKind('present')}
+              className="flex-1 text-center p-3 bg-green-100 rounded-lg hover:ring-2 hover:ring-green-400 transition cursor-pointer"
+            >
               <div className="text-2xl font-bold text-green-600">{presentCount}</div>
               <div className="text-sm text-gray-600">출석</div>
-            </div>
-            <div className="flex-1 text-center p-3 bg-red-100 rounded-lg">
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistoryKind('absent')}
+              className="flex-1 text-center p-3 bg-red-100 rounded-lg hover:ring-2 hover:ring-red-400 transition cursor-pointer"
+            >
               <div className="text-2xl font-bold text-red-600">{absentCount}</div>
               <div className="text-sm text-gray-600">결석</div>
-            </div>
+            </button>
           </div>
         </div>
-
-        {/* 출석 기록 */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">출석 기록</h2>
-          {attendance.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">출석 기록이 없습니다.</p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {attendance.map((record) => (
-                <div
-                  key={record.id}
-                  className={`flex justify-between items-center p-3 rounded-lg ${
-                    record.status === 'present' ? 'bg-green-50' : 'bg-red-50'
-                  }`}
-                >
-                  <div>
-                    <span className="font-medium">{record.date.split('T')[0]}</span>
-                    <span className="text-gray-600 ml-2">({record.department?.name || record.departmentName || '미배정'})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {record.talentGiven > 0 && (
-                      <span className="text-yellow-600">+{record.talentGiven} 달란트</span>
-                    )}
-                    <span
-                      className={`px-2 py-1 rounded text-sm font-medium ${
-                        record.status === 'present'
-                          ? 'bg-green-500 text-white'
-                          : 'bg-red-500 text-white'
-                      }`}
-                    >
-                      {record.status === 'present' ? '출석' : '결석'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 달란트 거래 내역 */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4">달란트 거래 내역</h2>
-          {transactions.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">거래 내역이 없습니다.</p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {transactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className={`flex justify-between items-center p-3 rounded-lg ${
-                    tx.amount > 0 ? 'bg-green-50' : 'bg-red-50'
-                  }`}
-                >
-                  <div>
-                    <span className="font-medium">{tx.reason}</span>
-                    <div className="text-sm text-gray-500">
-                      {new Date(tx.createdAt).toLocaleDateString('ko-KR')}
-                    </div>
-                  </div>
-                  <span
-                    className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}
-                  >
-                    {tx.amount > 0 ? '+' : ''}{tx.amount}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
+
+      <Modal
+        isOpen={historyKind !== null}
+        onClose={() => setHistoryKind(null)}
+        title={historyTitle}
+      >
+        {historyRecords.length === 0 ? (
+          <p className="text-center text-gray-400 py-6">내역이 없습니다.</p>
+        ) : (
+          <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+            {historyRecords.map((record) => (
+              <div
+                key={record.id}
+                className={`flex justify-between items-center p-3 rounded-lg ${
+                  record.status === 'present' ? 'bg-green-50' : 'bg-red-50'
+                }`}
+              >
+                <div>
+                  <span className="font-medium">{record.date.split('T')[0]}</span>
+                  {record.talentGiven > 0 && (
+                    <span className="text-yellow-600 text-sm ml-2">
+                      +{record.talentGiven} 달란트
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={`px-2 py-1 rounded text-sm font-medium text-white ${
+                    record.status === 'present' ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                >
+                  {record.status === 'present' ? '출석' : '결석'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      <TalentHistoryModal
+        isOpen={talentOpen}
+        onClose={() => setTalentOpen(false)}
+        studentId={student.id}
+        studentName={student.name}
+        currentTalent={student.talent}
+      />
     </div>
   );
 }

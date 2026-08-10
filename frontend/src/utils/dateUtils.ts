@@ -1,44 +1,63 @@
 /**
- * 2026년의 모든 일요일 목록을 반환합니다.
+ * 지정한 연도의 모든 일요일 목록을 반환합니다. (YYYY-MM-DD)
  */
-export function getSundaysIn2026(): string[] {
+export function getSundaysInYear(year: number): string[] {
   const sundays: string[] = [];
-  const startDate = new Date('2026-01-01');
-  const endDate = new Date('2026-12-31');
-  
-  for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-    if (date.getDay() === 0) { // 일요일
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      sundays.push(`${year}-${month}-${day}`);
-    }
+  const date = new Date(year, 0, 1);
+
+  // 해당 연도의 첫 일요일로 이동
+  const day = date.getDay();
+  if (day !== 0) {
+    date.setDate(date.getDate() + (7 - day));
   }
-  
+
+  while (date.getFullYear() === year) {
+    const y = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    sundays.push(`${y}-${month}-${d}`);
+    date.setDate(date.getDate() + 7);
+  }
+
   return sundays;
 }
 
+/** @deprecated getSundaysInYear(2026) 사용 */
+export function getSundaysIn2026(): string[] {
+  return getSundaysInYear(2026);
+}
+
 /**
- * 날짜가 2026년 일요일인지 확인합니다.
+ * 출석 가능한 날짜인지 확인 (일요일)
  */
+export function isAttendanceSunday(dateString: string): boolean {
+  const [y, m, d] = dateString.split('-').map(Number);
+  if (!y || !m || !d) return false;
+  const date = new Date(y, m - 1, d);
+  return (
+    date.getFullYear() === y &&
+    date.getMonth() === m - 1 &&
+    date.getDate() === d &&
+    date.getDay() === 0
+  );
+}
+
+/** @deprecated isAttendanceSunday 사용 */
 export function isSundayIn2026(dateString: string): boolean {
-  const date = new Date(dateString);
-  const year = date.getFullYear();
-  const dayOfWeek = date.getDay();
-  
-  return year === 2026 && dayOfWeek === 0;
+  return isAttendanceSunday(dateString) && dateString.startsWith('2026');
 }
 
 /**
  * 날짜를 한국어 형식으로 포맷합니다 (예: 2026년 1월 5일)
  */
 export function formatDateKorean(dateString: string): string {
-  const date = new Date(dateString);
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  
-  return `${year}년 ${month}월 ${day}일`;
+  const [y, m, d] = dateString.split('-').map(Number);
+  return `${y}년 ${m}월 ${d}일`;
 }
 
-
+/**
+ * YYYY-MM-DD 문자열 생성
+ */
+export function toDateString(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
