@@ -83,14 +83,14 @@ export default function Home() {
         </div>
 
         <a
-          href="https://gospel-quiz.vercel.app"
+          href="https://gospel-quiz-two.vercel.app"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-between bg-white rounded-lg shadow-md p-6 mb-4 border border-transparent hover:border-blue-300 hover:bg-blue-50 transition-colors"
         >
           <div>
             <div className="font-bold">복음퀴즈부</div>
-            <div className="text-sm text-gray-600">복음 퀴즈에 참여하러 가기</div>
+            <div className="text-sm text-gray-600">복음 퀴즈 바로가기</div>
           </div>
           <span className="text-blue-600 text-xl" aria-hidden="true">→</span>
         </a>
