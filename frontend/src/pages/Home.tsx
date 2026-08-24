@@ -82,6 +82,19 @@ export default function Home() {
           </form>
         </div>
 
+        <a
+          href="https://gospel-quiz.vercel.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between bg-white rounded-lg shadow-md p-6 mb-4 border border-transparent hover:border-blue-300 hover:bg-blue-50 transition-colors"
+        >
+          <div>
+            <div className="font-bold">복음퀴즈부</div>
+            <div className="text-sm text-gray-600">복음 퀴즈에 참여하러 가기</div>
+          </div>
+          <span className="text-blue-600 text-xl" aria-hidden="true">→</span>
+        </a>
+
         {/* 검색 결과 목록 */}
         {searchResults.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-4">
